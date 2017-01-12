@@ -168,5 +168,12 @@ function restartDead () {
   fork();
 }
 
+function sendConfig (config) {
+  Object.keys(cluster.workers).forEach(function (key) {
+    cluster.workers[key].send({ type: 'config', config: config });
+  });
+}
+
 module.exports = prefect;
 module.exports.run = run;
+module.exports.sendConfig = sendConfig;
