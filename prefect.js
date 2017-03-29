@@ -169,6 +169,10 @@ function restartDead () {
 }
 
 function sendConfig (config) {
+  cluster.setupMaster({
+    args: [JSON.stringify(config || {})]
+  });
+
   Object.keys(cluster.workers).forEach(function (key) {
     cluster.workers[key].send({ type: 'config', config: config });
   });
