@@ -1,6 +1,6 @@
 {
   "name": "prefect",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Manages node's built-in cluster module",
   "main": "prefect.js",
   "scripts": {
