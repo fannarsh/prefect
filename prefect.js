@@ -1,7 +1,5 @@
 'use strict';
 
-// todo : graceful shutdown
-// todo : handle kill signals
 // todo : send messages to workers
 // todo : forward messages from workers
 // todo : minimize logging
@@ -10,6 +8,10 @@ var os = require('os');
 var path = require('path');
 var events = require('events');
 var cluster = require('cluster');
+
+var exitHook = require('exit-hook');
+
+function noop () {}
 
 var clusterSize = 0;
 var listenersReady = false;
@@ -69,7 +71,9 @@ function startCluster () {
   reroll();
 }
 
-function reroll () {
+function reroll (cb) {
+  // cb gets only called on running/succes
+  if (!cb) cb = noop;
   if (rolling) return;
   rolling = true;
   var deprecatedWorkers = Object.keys(cluster.workers);
@@ -90,7 +94,9 @@ function reroll () {
         rolling = false;
       }, 200);
       console.log('[prefect] Rerolling.. Finished');
-      return prefect.emit('running', { old_size: deprecatedSize, current_size: currentSize });
+      var stats = { old_size: deprecatedSize, current_size: currentSize };
+      prefect.emit('running', stats);
+      return cb(stats);
     } else if (currentSize > clusterSize) {
       console.log('[prefect] Rerolling.. Need to shutdown some workers');
       roll();
@@ -103,7 +109,7 @@ function reroll () {
   // todo : betra check á workerid
   function roll () {
     var workerId = deprecatedWorkers.splice(0, 1)[0];
-    console.log('[prefect]', workerId, deprecatedWorkers);
+    console.log('[prefect] workerId: %s, deprecatedWorkers: %s', workerId, deprecatedWorkers);
     if (!workerId) {
       return console.log('[prefect] Missing worker id!');
     }
@@ -150,14 +156,14 @@ function fork (success, fail) {
 }
 
 function shutdown (workerId, cb) {
+  if (!cb) cb = noop;
   var worker = cluster.workers[workerId];
   if (!worker) {
     console.log('[prefect] Missing worker with id:', workerId);
-    if (cb) cb(); // todo : err?
-    return;
+    return cb(); // todo : err?
   }
   console.log('[prefect] Shutting down %s', printWorker(worker));
-  if (cb) worker.on('disconnect', cb);
+  if (cb) worker.once('exit', cb);
   worker.disconnect();
 }
 
@@ -177,6 +183,15 @@ function sendConfig (config) {
     cluster.workers[key].send({ type: 'config', config: config });
   });
 }
+
+exitHook(function (next) {
+  console.log('[prefect] exit-hook, Going to shut down the cluster');
+  clusterSize = 0;
+  reroll(function () {
+    console.log('[prefect] exit-hook, Cluster is down!');
+    next();
+  });
+});
 
 module.exports = prefect;
 module.exports.run = run;

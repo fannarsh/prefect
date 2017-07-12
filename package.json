@@ -18,5 +18,8 @@
   "bugs": {
     "url": "https://github.com/fannarsh/prefect/issues"
   },
-  "homepage": "https://github.com/fannarsh/prefect#readme"
+  "homepage": "https://github.com/fannarsh/prefect#readme",
+  "dependencies": {
+    "exit-hook": "github:fannarsh/exit-hook"
+  }
 }
